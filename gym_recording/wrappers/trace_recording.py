@@ -4,7 +4,7 @@ import json
 import glob
 import logging
 import numpy as np
-
+import gym
 from gym import error
 from gym.utils import atomic_write, closer
 logger = logging.getLogger(__name__)

@@ -5,16 +5,23 @@ import gym
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+__all__ = ['upload_recording', 'download_recording']
 
-def upload_recording(directory, bucket):
+cookie_rng = random.SystemRandom() # initialized from /dev/urandom
+def random_token(l=3):
+    return ''.join([cookie_rng.choice('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz') for i in range(l)])
+
+
+
+def upload_recording(directory, env_name, bucket):
     s3 = boto3.resource('s3')
     token = random_token(3)
     s3dir = os.path.join('recording', env_name, time.strftime('%Y-%m-%d_%H-%M-%S') + '_' + token)
-    logger.info('Scanning %s', recdir)
+    logger.info('Scanning %s', directory)
     b = s3.Bucket(bucket)
-    for fn in os.listdir(recdir):
-        logger.info('Upload %s', fn)
-        b.upload_file(Filename=os.path.join(recdir, fn), Key=os.path.join(s3dir, fn))
+    for fn in os.listdir(directory):
+        logger.info('Upload %s to %s', fn, os.path.join(s3dir, fn))
+        b.upload_file(Filename=os.path.join(directory, fn), Key=os.path.join(s3dir, fn))
     return 's3://' + bucket + '/' + s3dir
 
 
