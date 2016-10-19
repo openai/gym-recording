@@ -14,6 +14,9 @@ def random_token(l=3):
 
 
 def upload_recording(directory, env_name, bucket):
+    """
+    Upload the recording saved in directory to bucket. Returns an s3://... URL
+    """
     s3 = boto3.resource('s3')
     token = random_token(3)
     s3dir = os.path.join('recording', env_name, time.strftime('%Y-%m-%d_%H-%M-%S') + '_' + token)
@@ -26,6 +29,11 @@ def upload_recording(directory, env_name, bucket):
 
 
 def download_recording(s3url):
+    """
+    Download the recording saved in s3url to a directory in /tmp. It'll reuse the cached
+    recording if it's already downloaded. Returns a directory
+    """
+    Download the core
     s3 = boto3.resource('s3')
     m = re.match(r's3://([\w\-]+)/([\w\-\.\/]+)', s3url)
     if not m:
