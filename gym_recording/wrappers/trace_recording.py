@@ -6,16 +6,11 @@ import logging
 import numpy as np
 import gym
 from gym import error
-from gym.utils import atomic_write, closer
+from gym.utils import closer
+from gym_recording.recording import TraceRecording
 logger = logging.getLogger(__name__)
 
-__all__ = ['TraceRecordingWrapper', 'scan_recorded_traces']
-
-class JSONNumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, ndarray):
-            return {'__type': 'ndarray', 'shape': obj.shape, 'dtype': str(obj.dtype)}
-        return json.JSONEncoder.default(self, obj)
+__all__ = ['TraceRecordingWrapper']
 
 
 trace_record_closer = closer.Closer()
@@ -35,7 +30,9 @@ class TraceRecordingWrapper(gym.Wrapper):
       if args.record_trace:
         env = TraceRecordingWrapper(env, '/tmp/mytraces')
 
-    It'll save a numbered series of pickled files with a manifest in /tmp/mytraces/openaigym.traces.*
+    It'll save a numbered series of json-encoded files, with large arrays stored in binary, along
+    with a manifest in /tmp/mytraces/openaigym.traces.*.
+    See gym_recording.recording for more on the file format
 
     Later you can load the recorded traces:
 
@@ -58,138 +55,27 @@ class TraceRecordingWrapper(gym.Wrapper):
         Create a TraceRecordingWrapper around env, writing into directory
         """
         super(TraceRecordingWrapper, self).__init__(env)
+        self.recording = None
+        trace_record_closer.register(self)
 
-        closer_id = trace_record_closer.register(self)
-
-        if directory is None:
-            directory = os.path.join('/tmp', 'openai.gym.{}.{}'.format(time.time(), os.getpid()))
-            os.mkdir(directory)
-
-        self.directory = directory
-        self.file_prefix = 'openaigym.trace.{}.{}'.format(closer_id, os.getpid())
-
-        self.done = None
-        self.closed = False
-
-        self.actions = []
-        self.observations = []
-        self.rewards = []
-        self.episode_id = 0
-
-        self.buffered_step_count = 0
-        self.buffer_batch_size = 1000
-
-        self.episodes_first = 0
-        self.episodes = []
-        self.batches = []
+        self.recording = TraceRecording(None)
+        self.directory = self.recording.directory
 
     def _step(self, action):
-        self.actions.append(action)
         observation, reward, done, info = self.env.step(action)
-        if done:
-            self.done = True
-        self.observations.append(observation)
-        self.rewards.append(reward)
-        self.buffered_step_count += 1
-
+        self.recording.add_step(action, observation, reward)
         return observation, reward, done, info
 
     def _reset(self):
-        assert not self.closed
-        self.done = False
+        self.recording.end_episode()
         observation = self.env.reset()
-        self._end_episode()
-        self.observations.append(observation)
+        self.recording.add_reset(observation)
         return observation
-
-    def _end_episode(self):
-        """
-        if len(observations) == 0, nothing has happened yet.
-        If len(observations) == 1, then len(actions) == 0, and we have only called reset and done a null episode.
-        """
-        if len(self.observations) > 0:
-            if len(self.episodes)==0:
-                self.episodes_first = self.episode_id
-
-            self.episodes.append({
-                'actions': optimize_list_of_ndarrays(self.actions),
-                'observations': optimize_list_of_ndarrays(self.observations),
-                'rewards': optimize_list_of_ndarrays(self.rewards),
-            })
-            self.actions = []
-            self.observations = []
-            self.rewards = []
-            self.episode_id += 1
-
-            if self.buffered_step_count >= self.buffer_batch_size:
-                self._save_complete()
-
-    def _save_complete(self):
-        """
-        Save the latest batch and write a manifest listing all the batches
-        """
-
-        batch_fn = '{}.ep{:09}.json'.format(self.file_prefix, self.episodes_first)
-        bin_fn = '{}.ep{:09}.bin'.format(self.file_prefix, self.episodes_first)
-
-        with atomic_write.atomic_write(os.path.join(self.directory, batch_fn), False) as batch_f:
-            with atomic_write.atomic_write(os.path.join(self.directory, bin_fn), True) as bin_f:
-
-                def json_encode(obj):
-                    if isinstance(obj, np.ndarray):
-                        offset = bin_f.tell()
-                        np.save(bin_f, obj)
-                        return {'__type': 'ndarray', 'shape': obj.shape, 'dtype': str(obj.dtype), 'npyfile': bin_fn, 'npyoff': offset}
-                    return obj
-
-                json.dump({'episodes': self.episodes}, batch_f, default=json_encode)
-
-                bytes_per_step = float(bin_f.tell() + batch_f.tell()) / float(self.buffered_step_count)
-
-        self.batches.append({
-            'first': self.episodes_first,
-            'len': len(self.episodes),
-            'fn': batch_fn})
-
-        manifest = {'batches': self.batches}
-        manifest_fn = os.path.join(self.directory, '{}.manifest.json'.format(self.file_prefix))
-        with atomic_write.atomic_write(os.path.join(self.directory, manifest_fn), False) as f:
-            json.dump(manifest, f)
-
-        # Adjust batch size, aiming for 5 MB per file.
-        # This seems like a reasonable tradeoff between:
-        #   writing speed (not too much overhead creating small files)
-        #   local memory usage (buffering an entire batch before writing)
-        #   random read access (loading the whole file isn't too much work when just grabbing one episode)
-        self.buffer_batch_size = max(1, min(50000, int(5000000 / bytes_per_step + 1)))
-
-        self.episodes = []
-        self.episodes_first = None
-        self.buffered_step_count = 0
 
     def close(self):
         """
         Flush any buffered data to disk and close. It should get called automatically at program exit time, but
         you can free up memory by calling it explicitly when you're done
         """
-        if not self.closed:
-            self._end_episode()
-            if len(self.episodes) > 0:
-                self._save_complete()
-            self.closed = True
-            logger.info('Wrote traces to %s', self.directory)
-
-
-
-def optimize_list_of_ndarrays(x):
-    """
-    Replace a list of ndarrays with a single ndarray with an extra dimension.
-    Should return unchanged a list of other kinds of observations or actions, like Discrete or Tuple
-    """
-    if type(x) == np.ndarray:
-        return x
-    if len(x) == 0:
-        return np.array([[]])
-    if type(x[0]) == float or type(x[0]) == int or type(x[0]) == np.ndarray:
-        return np.array(x)
-    return x
+        if self.recording is not None:
+            self.recording.close()
