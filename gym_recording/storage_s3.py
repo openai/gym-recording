@@ -33,7 +33,7 @@ def download_recording(s3url):
     Download the recording saved in s3url to a directory in /tmp. It'll reuse the cached
     recording if it's already downloaded. Returns a directory
     """
-    Download the core
+    #Download the core
     s3 = boto3.resource('s3')
     m = re.match(r's3://([\w\-]+)/([\w\-\.\/]+)', s3url)
     if not m:
