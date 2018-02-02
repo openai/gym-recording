@@ -107,7 +107,7 @@ class TraceRecording(object):
 
         manifest = {'batches': self.batches}
         manifest_fn = os.path.join(self.directory, '{}.manifest.json'.format(self.file_prefix))
-        with atomic_write.atomic_write(os.path.join(self.directory, manifest_fn), False) as f:
+        with atomic_write.atomic_write(manifest_fn, False) as f:
             json.dump(manifest, f)
 
         # Adjust batch size, aiming for 5 MB per file.
