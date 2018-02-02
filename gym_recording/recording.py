@@ -12,11 +12,10 @@ logger = logging.getLogger(__name__)
 
 class TraceRecording(object):
     _id_counter = 0
-    def __init__(self, directory=None):
+    def __init__(self, directory=None, buffer_batch_size=100):
         """
         Create a TraceRecording, writing into directory
         """
-
         if directory is None:
             directory = os.path.join('/tmp', 'openai.gym.{}.{}'.format(time.time(), os.getpid()))
             os.mkdir(directory)
@@ -33,7 +32,7 @@ class TraceRecording(object):
         self.episode_id = 0
 
         self.buffered_step_count = 0
-        self.buffer_batch_size = 100
+        self.buffer_batch_size = buffer_batch_size
 
         self.episodes_first = 0
         self.episodes = []
@@ -83,7 +82,6 @@ class TraceRecording(object):
 
         batch_fn = '{}.ep{:09}.json'.format(self.file_prefix, self.episodes_first)
         bin_fn = '{}.ep{:09}.bin'.format(self.file_prefix, self.episodes_first)
-
         with atomic_write.atomic_write(os.path.join(self.directory, batch_fn), False) as batch_f:
             with atomic_write.atomic_write(os.path.join(self.directory, bin_fn), True) as bin_f:
 
