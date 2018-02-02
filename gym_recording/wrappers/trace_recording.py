@@ -62,8 +62,9 @@ class TraceRecordingWrapper(gym.Wrapper):
         self.directory = self.recording.directory
 
     def _step(self, action):
+        print('Saving action!')
         observation, reward, done, info = self.env.step(action)
-        self.recording.add_step(action, observation, reward)
+        self.recording.add_step(action, observation, reward, info)
         return observation, reward, done, info
 
     def _reset(self):

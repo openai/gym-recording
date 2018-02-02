@@ -29,6 +29,7 @@ class TraceRecording(object):
         self.actions = []
         self.observations = []
         self.rewards = []
+        self.infos = []
         self.episode_id = 0
 
         self.buffered_step_count = 0
@@ -43,11 +44,12 @@ class TraceRecording(object):
         self.end_episode()
         self.observations.append(observation)
 
-    def add_step(self, action, observation, reward):
+    def add_step(self, action, observation, reward, info):
         assert not self.closed
         self.actions.append(action)
         self.observations.append(observation)
         self.rewards.append(reward)
+        self.infos.append(info)
         self.buffered_step_count += 1
 
     def end_episode(self):
@@ -63,13 +65,16 @@ class TraceRecording(object):
                 'actions': optimize_list_of_ndarrays(self.actions),
                 'observations': optimize_list_of_ndarrays(self.observations),
                 'rewards': optimize_list_of_ndarrays(self.rewards),
+                'infos': optimize_list_of_ndarrays(self.infos),
             })
             self.actions = []
             self.observations = []
             self.rewards = []
+            self.infos = []
             self.episode_id += 1
 
             if self.buffered_step_count >= self.buffer_batch_size:
+                print('Saving to file!')
                 self.save_complete()
 
     def save_complete(self):

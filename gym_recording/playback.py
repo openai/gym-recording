@@ -70,7 +70,7 @@ def scan_recorded_traces(directory, episode_cb=None, max_episodes=None):
     added_episode_count = 0
     for batch in rdr.get_recorded_batches():
         for ep in rdr.get_recorded_episodes(batch):
-            episode_cb(ep['observations'], ep['actions'], ep['rewards'])
+            episode_cb(ep['observations'], ep['actions'], ep['rewards'], ep['infos'])
             added_episode_count += 1
             if max_episodes is not None and added_episode_count >= max_episodes: return
     rdr.close()
