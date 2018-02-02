@@ -74,7 +74,6 @@ class TraceRecording(object):
             self.episode_id += 1
 
             if self.buffered_step_count >= self.buffer_batch_size:
-                print('Saving to file!')
                 self.save_complete()
 
     def save_complete(self):
@@ -102,9 +101,8 @@ class TraceRecording(object):
                     return obj
 
                 json.dump({'episodes': self.episodes}, batch_f, default=json_encode)
-
-                bytes_per_step = float(bin_f.tell() + batch_f.tell()) / float(self.buffered_step_count)
-
+                # bytes_per_step = float(bin_f.tell() + batch_f.tell()) / float(self.buffered_step_count)
+                
         self.batches.append({
             'first': self.episodes_first,
             'len': len(self.episodes),
@@ -120,7 +118,7 @@ class TraceRecording(object):
         #   writing speed (not too much overhead creating small files)
         #   local memory usage (buffering an entire batch before writing)
         #   random read access (loading the whole file isn't too much work when just grabbing one episode)
-        self.buffer_batch_size = max(1, min(50000, int(5000000 / bytes_per_step + 1)))
+        # self.buffer_batch_size = max(1, min(50000, int(5000000 / bytes_per_step + 1)))
 
         self.episodes = []
         self.episodes_first = None
