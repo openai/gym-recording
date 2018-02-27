@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def handle_ep(observations, actions, rewards, infos):
-
+    # Plot config
     plt.ion()
     fig = plt.figure()
     fig.gca().set_aspect('equal', adjustable='box')
@@ -13,21 +13,17 @@ def handle_ep(observations, actions, rewards, infos):
 
     # plot empty line to generate line object 
     line, = ax.plot(xs,ys) 
-
-
     plt.ioff() # turn off interactive mode 
 
-    print('\n\n\n\nAn episode begins!')
+    print('\n\nAn episode begins!')
     for obs, a, r, i in zip(observations, actions, rewards, infos):
-        print(': {} {} {} {}'.format(obs, a, r, i))
+        print('Data - obs: {} action: {} reward: {} info: {}'.format(obs, a, r, i))
         x = i['self_state']['lon']
         y = i['self_state']['lat']
         xs = np.append(xs,x); 
         ys = np.append(ys,y); 
     plt.plot(xs, ys, '-o')
 
-
 if __name__ == '__main__':
-   # playback.scan_recorded_traces('./t', handle_ep)
-    playback.scan_recorded_traces('/home/daniel/code/cogle/ddpg-craft/scripts/traces', handle_ep)
+    playback.scan_recorded_traces('/home/cogle/baselines/ddpg/CoGLE-nav-virtual-v0/', handle_ep)
     plt.show()
