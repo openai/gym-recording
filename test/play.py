@@ -4,7 +4,7 @@ import numpy as np
 import glob, os
 
 def handle_ep(observations, actions, rewards, infos):
-
+    # Plot config
     plt.ion()
     fig = plt.figure()
     fig.gca().set_aspect('equal', adjustable='box')
@@ -19,7 +19,7 @@ def handle_ep(observations, actions, rewards, infos):
 
     plt.ioff() # turn off interactive mode 
 
-    print('\n\n\n\nAn episode begins!')
+    print('\n\nAn episode begins!')
     for obs, a, r, i in zip(observations, actions, rewards, infos):
         print('Obs: {} a: {} r: {} info: {}'.format(obs, a, r, i))
         if i:
@@ -32,9 +32,8 @@ def handle_ep(observations, actions, rewards, infos):
 
     plt.plot(xs, ys, 'o-')
 
-
 if __name__ == '__main__':
-    path = '/tmp/gym/traces/'
+    path = '/tmp/gym/traces/CoGLE-nav-virtual-v0/train/'
     files = glob.glob(os.path.join(path, '*'))
     files.sort()
     
