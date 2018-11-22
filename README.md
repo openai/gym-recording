@@ -1,3 +1,5 @@
+**Status:** Archive (code is provided as-is, no updates expected)
+
 # gym-recording
 
 A Python package to capture the sequences of actions and observations on a [Gym](https://github.com/openai/gym) environment
