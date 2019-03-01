@@ -12,11 +12,10 @@ logger = logging.getLogger(__name__)
 
 class TraceRecording(object):
     _id_counter = 0
-    def __init__(self, directory=None):
+    def __init__(self, directory=None, buffer_batch_size=100):
         """
         Create a TraceRecording, writing into directory
         """
-
         if directory is None:
             directory = os.path.join('/tmp', 'openai.gym.{}.{}'.format(time.time(), os.getpid()))
             os.mkdir(directory)
@@ -30,10 +29,11 @@ class TraceRecording(object):
         self.actions = []
         self.observations = []
         self.rewards = []
+        self.infos = []
         self.episode_id = 0
 
         self.buffered_step_count = 0
-        self.buffer_batch_size = 100
+        self.buffer_batch_size = buffer_batch_size
 
         self.episodes_first = 0
         self.episodes = []
@@ -44,11 +44,12 @@ class TraceRecording(object):
         self.end_episode()
         self.observations.append(observation)
 
-    def add_step(self, action, observation, reward):
+    def add_step(self, action, observation, reward, info):
         assert not self.closed
         self.actions.append(action)
         self.observations.append(observation)
         self.rewards.append(reward)
+        self.infos.append(info)
         self.buffered_step_count += 1
 
     def end_episode(self):
@@ -64,10 +65,12 @@ class TraceRecording(object):
                 'actions': optimize_list_of_ndarrays(self.actions),
                 'observations': optimize_list_of_ndarrays(self.observations),
                 'rewards': optimize_list_of_ndarrays(self.rewards),
+                'infos': optimize_list_of_ndarrays(self.infos),
             })
             self.actions = []
             self.observations = []
             self.rewards = []
+            self.infos = []
             self.episode_id += 1
 
             if self.buffered_step_count >= self.buffer_batch_size:
@@ -83,7 +86,6 @@ class TraceRecording(object):
 
         batch_fn = '{}.ep{:09}.json'.format(self.file_prefix, self.episodes_first)
         bin_fn = '{}.ep{:09}.bin'.format(self.file_prefix, self.episodes_first)
-
         with atomic_write.atomic_write(os.path.join(self.directory, batch_fn), False) as batch_f:
             with atomic_write.atomic_write(os.path.join(self.directory, bin_fn), True) as bin_f:
 
@@ -99,9 +101,8 @@ class TraceRecording(object):
                     return obj
 
                 json.dump({'episodes': self.episodes}, batch_f, default=json_encode)
-
-                bytes_per_step = float(bin_f.tell() + batch_f.tell()) / float(self.buffered_step_count)
-
+                # bytes_per_step = float(bin_f.tell() + batch_f.tell()) / float(self.buffered_step_count)
+                
         self.batches.append({
             'first': self.episodes_first,
             'len': len(self.episodes),
@@ -109,7 +110,7 @@ class TraceRecording(object):
 
         manifest = {'batches': self.batches}
         manifest_fn = os.path.join(self.directory, '{}.manifest.json'.format(self.file_prefix))
-        with atomic_write.atomic_write(os.path.join(self.directory, manifest_fn), False) as f:
+        with atomic_write.atomic_write(manifest_fn, False) as f:
             json.dump(manifest, f)
 
         # Adjust batch size, aiming for 5 MB per file.
@@ -117,7 +118,7 @@ class TraceRecording(object):
         #   writing speed (not too much overhead creating small files)
         #   local memory usage (buffering an entire batch before writing)
         #   random read access (loading the whole file isn't too much work when just grabbing one episode)
-        self.buffer_batch_size = max(1, min(50000, int(5000000 / bytes_per_step + 1)))
+        # self.buffer_batch_size = max(1, min(50000, int(5000000 / bytes_per_step + 1)))
 
         self.episodes = []
         self.episodes_first = None
