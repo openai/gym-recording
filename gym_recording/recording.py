@@ -108,7 +108,7 @@ class TraceRecording(object):
             'fn': batch_fn})
 
         manifest = {'batches': self.batches}
-        manifest_fn = os.path.join(self.directory, '{}.manifest.json'.format(self.file_prefix))
+        manifest_fn = '{}.manifest.json'.format(self.file_prefix)
         with atomic_write.atomic_write(os.path.join(self.directory, manifest_fn), False) as f:
             json.dump(manifest, f)
 
