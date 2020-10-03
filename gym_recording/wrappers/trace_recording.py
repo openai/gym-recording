@@ -57,8 +57,8 @@ class TraceRecordingWrapper(gym.Wrapper):
         super(TraceRecordingWrapper, self).__init__(env)
         self.recording = None
         trace_record_closer.register(self)
-
-        self.recording = TraceRecording(None)
+        
+        self.recording = TraceRecording(directory)
         self.directory = self.recording.directory
 
     def _step(self, action):
