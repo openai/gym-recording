@@ -57,16 +57,16 @@ class TraceRecordingWrapper(gym.Wrapper):
         super(TraceRecordingWrapper, self).__init__(env)
         self.recording = None
         trace_record_closer.register(self)
-
-        self.recording = TraceRecording(None)
+        
+        self.recording = TraceRecording(directory)
         self.directory = self.recording.directory
 
-    def _step(self, action):
+    def step(self, action):
         observation, reward, done, info = self.env.step(action)
         self.recording.add_step(action, observation, reward)
         return observation, reward, done, info
 
-    def _reset(self):
+    def reset(self):
         self.recording.end_episode()
         observation = self.env.reset()
         self.recording.add_reset(observation)
